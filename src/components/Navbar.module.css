@@ -1,0 +1,85 @@
+/* src/components/Navbar.module.css */
+
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #34495e;
+  color: #fff;
+  padding: 1rem 2rem;
+  position: relative;
+  z-index: 1000;
+}
+
+.brand {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.hamburger {
+  display: none;
+  font-size: 1.5rem;
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+/* Links wrapper */
+.links {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+/* Mobile menu - hidden by default */
+@media (max-width: 768px) {
+  .hamburger {
+    display: block;
+  }
+
+  .links {
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background-color: #2c3e50;
+    width: 100%;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    padding: 0;
+  }
+
+  .links.active {
+    max-height: 500px;
+    padding: 1rem 2rem;
+  }
+}
+
+.link {
+  color: #ecf0f1;
+  text-decoration: none;
+  font-size: 1rem;
+  padding: 0.5rem 0;
+  transition: color 0.2s ease;
+}
+
+.link:hover {
+  color: #f1c40f;
+}
+
+.logoutButton {
+  background-color: #e74c3c;
+  border: none;
+  padding: 8px 16px;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  margin-top: 0.5rem;
+}
+
+.logoutButton:hover {
+  background-color: #c0392b;
+}

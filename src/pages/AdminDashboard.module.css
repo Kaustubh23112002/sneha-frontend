@@ -1,0 +1,303 @@
+/* src/pages/AdminDashboard.module.css */
+
+.container {
+  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.headerSection {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.heading {
+  font-size: 2rem;
+  margin: 0;
+}
+
+.filterSection {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dateInput {
+  padding: 8px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.loadButton {
+  padding: 8px 16px;
+  font-size: 1rem;
+  background-color: #4b6cb7;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.loadButton:hover {
+  background-color: #3a539b;
+}
+
+.listSection {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+/* Two columns on wider screens */
+@media (min-width: 768px) {
+  .listSection {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.employeeCard {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.empHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.empName {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.empEmail {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.historyButton {
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.historyButton:hover {
+  background-color: #276626;
+}
+
+.empDetails {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.empDetailRow {
+  display: flex;
+  flex-direction: column;
+}
+
+.empDetailRow label {
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.empDetailRow input {
+  padding: 8px;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.shiftSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.subheading {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.shiftRowEditable {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.shiftInputGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.shiftInputGroup label {
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.shiftInputGroup input {
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.saveButton {
+  align-self: flex-start;
+  padding: 8px 16px;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.saveButton:hover {
+  background-color: #115293;
+}
+
+.punchContainer {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.punchRow {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.punchField {
+  display: flex;
+  flex-direction: column;
+}
+
+.punchField label {
+  font-size: 0.85rem;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.punchField input {
+  padding: 6px;
+  font-size: 0.95rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.savePunchButton {
+  padding: 6px 12px;
+  background-color: #388e3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s;
+  margin-bottom: 4px;
+}
+
+.savePunchButton:hover {
+  background-color: #2e7d32;
+}
+
+.late {
+  color: #c62828;
+  margin-top: 4px;
+  font-size: 0.85rem;
+}
+
+.overtime {
+  color: #2e7d32;
+  margin-top: 4px;
+  font-size: 0.85rem;
+}
+
+.historySection {
+  margin-top: 2rem;
+  border-top: 1px solid #ddd;
+  padding-top: 1.5rem;
+}
+
+.historyHeading {
+  font-size: 1.4rem;
+  margin-bottom: 1rem;
+}
+
+.historyCard {
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.historyPunch {
+  padding-left: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Responsiveness for small screens */
+@media (max-width: 600px) {
+  .empDetails {
+    grid-template-columns: 1fr;
+  }
+  .shiftRowEditable {
+    flex-direction: column;
+  }
+  .punchRow {
+    flex-direction: column;
+  }
+  .headerSection {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .filterSection {
+    width: 100%;
+    gap: 0.5rem;
+  }
+}
+
+
+.totalDuration {
+  font-weight: bold;
+  margin-top: 10px;
+  color: #333;
+}
+
+.durationDisplay, .durationSmall, .totalDurationSmall {
+  font-size: 14px;
+  color: #555;
+  margin-top: 4px;
+}
+
+.punchImage {
+  max-width: 100px;
+  border-radius: 4px;
+  margin: 4px 0;
+}

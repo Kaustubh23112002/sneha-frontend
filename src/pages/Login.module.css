@@ -1,0 +1,138 @@
+/* src/pages/Login.module.css */
+
+.container {
+  width: 100vw; /* Full width */
+  height: 100vh; /* Full height */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: linear-gradient(to right, #4b6cb7, #182848);
+  box-sizing: border-box;
+}
+
+.loginForm {
+  width: 100%;
+  max-width: 420px;
+  background-color: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.heading {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #333;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.input {
+  padding: 14px 18px;
+  margin-bottom: 1.2rem;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  font-size: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border 0.3s ease;
+}
+
+.input:focus {
+  border-color: #4b6cb7;
+  outline: none;
+}
+
+.passwordWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.togglePassword {
+  position: absolute;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.forgotPassword {
+  text-align: right;
+  margin-bottom: 1.2rem;
+}
+
+.forgotPassword a {
+  font-size: 0.9rem;
+  color: #4b6cb7;
+  text-decoration: none;
+}
+
+.forgotPassword a:hover {
+  text-decoration: underline;
+}
+
+.button {
+  background-color: #4b6cb7;
+  color: white;
+  padding: 14px 18px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.button:hover {
+  background-color: #3a539b;
+}
+
+.button:disabled {
+  background-color: #8faeea;
+  cursor: not-allowed;
+}
+
+/* Responsive layout */
+@media (max-width: 768px) {
+  .loginForm {
+    padding: 1.8rem 1.2rem;
+  }
+
+  .heading {
+    font-size: 1.6rem;
+  }
+
+  .input, .button {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .loginForm {
+    padding: 1.5rem 1rem;
+    border-radius: 10px;
+    box-shadow: none;
+  }
+
+  .heading {
+    font-size: 1.4rem;
+  }
+
+  .togglePassword {
+    font-size: 1rem;
+  }
+
+  .input, .button {
+    font-size: 0.9rem;
+  }
+}
