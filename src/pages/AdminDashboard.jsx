@@ -87,7 +87,7 @@ const AdminDashboard = () => {
       );
 
        console.log("Monthly Summary Response:", res.data); // 👈 ADD THIS LINE
-      const records = res.data.attendance || [];
+      const records = res.data.records || [];
 
       let totalMin = 0;
       // Calculate total minutes in month
