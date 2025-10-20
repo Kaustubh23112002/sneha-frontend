@@ -94,8 +94,8 @@ const AdminDashboard = () => {
       records.forEach((att) => {
         att.punches.forEach((p) => {
           if (p.inTime && p.outTime) {
-            const inM = moment(p.inTime, "HH:mm");
-            const outM = moment(p.outTime, "HH:mm");
+            const inM = moment(p.inTime, "hh:mm A");
+            const outM = moment(p.outTime, "hh:mm A");
             const diff = outM.diff(inM, "minutes");
             if (diff > 0) totalMin += diff;
           }
