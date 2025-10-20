@@ -2,7 +2,7 @@
 import axios from "axios";
 
 const axiosClient = axios.create({
-  baseURL: "http://localhost:5000", // ✅ correct backend URL
+  baseURL: "https://sneha-backend-ejzd.onrender.com", // ✅ correct backend URL
   withCredentials: true,                // ✅ important for cookies (auth)
 });
 
