@@ -4,7 +4,6 @@ import styles from "./AdminDashboard.module.css";
 import moment from "moment"; // add moment import if not already imported
 import { exportMonthlyReportToPDF } from "../utils/exportPdf";
 
-
 const AdminDashboard = () => {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [attendanceList, setAttendanceList] = useState([]);
@@ -14,7 +13,6 @@ const AdminDashboard = () => {
   const [editEmployees, setEditEmployees] = useState({});
   const [historyUserDetails, setHistoryUserDetails] = useState(null);
   const [monthlyUserDetails, setMonthlyUserDetails] = useState(null);
-
 
   // New states for monthly summary
   const [monthlyUser, setMonthlyUser] = useState(null);
@@ -86,7 +84,7 @@ const AdminDashboard = () => {
         }
       );
 
-       console.log("Monthly Summary Response:", res.data); // 👈 ADD THIS LINE
+      console.log("Monthly Summary Response:", res.data); // 👈 ADD THIS LINE
       const records = res.data.records || [];
 
       let totalMin = 0;
@@ -94,8 +92,8 @@ const AdminDashboard = () => {
       records.forEach((att) => {
         att.punches.forEach((p) => {
           if (p.inTime && p.outTime) {
-            const inM = moment(p.inTime, "hh:mm A");
-            const outM = moment(p.outTime, "hh:mm A");
+            const inM = moment(p.inTime, "HH:mm");
+            const outM = moment(p.outTime, "HH:mm");
             const diff = outM.diff(inM, "minutes");
             if (diff > 0) totalMin += diff;
           }
@@ -105,7 +103,7 @@ const AdminDashboard = () => {
       setMonthlyUser(userId);
       setMonthlyRecords(records);
       setMonthlyTotalMinutes(totalMin);
-       setMonthlyUserDetails(res.data.user); // ✅ Set full user object here
+      setMonthlyUserDetails(res.data.user); // ✅ Set full user object here
 
       // Clear history when viewing monthly summary
       setHistoryUser(null);
@@ -176,6 +174,24 @@ const AdminDashboard = () => {
     }
   };
 
+  const deleteEmployee = async (userId) => {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this employee and all their data?"
+      )
+    )
+      return;
+
+    try {
+      await axiosClient.delete(`/api/admin/employees/${userId}`);
+      alert("Employee deleted successfully");
+      await fetchByDate(); // Refresh list after deletion
+    } catch (err) {
+      console.error("Error deleting employee:", err);
+      alert("Failed to delete employee");
+    }
+  };
+
   const formatTo12Hour = (timeStr) => {
     if (!timeStr) return "--";
     const [hour, minute] = timeStr.split(":");
@@ -235,6 +251,14 @@ const AdminDashboard = () => {
                   style={{ marginLeft: "8px" }}
                 >
                   View Monthly Summary
+                </button>
+                {/* 🔥 Delete Employee Button */}
+                <button
+                  className={styles.deleteButton}
+                  style={{ backgroundColor: "#e74c3c", color: "white" }}
+                  onClick={() => deleteEmployee(user._id)}
+                >
+                  🗑️ Delete
                 </button>
               </div>
 
@@ -438,11 +462,14 @@ const AdminDashboard = () => {
             Total Worked: {Math.floor(monthlyTotalMinutes / 60)}h{" "}
             {monthlyTotalMinutes % 60}m
           </p>
-          
 
           <button
             onClick={() =>
-              exportMonthlyReportToPDF(monthlyUserDetails, monthlyRecords, monthlyTotalMinutes)
+              exportMonthlyReportToPDF(
+                monthlyUserDetails,
+                monthlyRecords,
+                monthlyTotalMinutes
+              )
             }
             style={{
               marginTop: "10px",
