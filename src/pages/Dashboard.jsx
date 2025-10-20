@@ -27,9 +27,13 @@ const Dashboard = () => {
     formData.append("photo", blob, "photo.jpg");
 
     try {
-      const endpoint = type === "in" ? "/api/attendance/punch-in" : "/api/attendance/punch-out";
+      const endpoint =
+        type === "in"
+          ? "/api/attendance/punch-in"
+          : "/api/attendance/punch-out";
       await axiosClient.post(endpoint, formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        withCredentials: true, // 👈 Required to send cookies
       });
       alert(`✅ Punch ${type} successful`);
       fetchAttendance();
@@ -64,7 +68,9 @@ const Dashboard = () => {
     fetchProfile();
   }, []);
 
-  const filteredAttendance = attendance.filter((entry) => entry.date === selectedDate);
+  const filteredAttendance = attendance.filter(
+    (entry) => entry.date === selectedDate
+  );
 
   const formatTo12Hour = (timeStr) => {
     if (!timeStr) return "--";
@@ -82,18 +88,28 @@ const Dashboard = () => {
       {employee && (
         <div className="profile-card">
           <h3>Your Profile</h3>
-          <p><strong>Full Name:</strong> {employee.fullName}</p>
-          <p><strong>Email:</strong> {employee.email}</p>
-          <p><strong>Phone Number:</strong> {employee.phoneNumber}</p>
-          <p><strong>Address:</strong> {employee.address}</p>
-          <p><strong>Salary:</strong> {employee.salary}</p>
+          <p>
+            <strong>Full Name:</strong> {employee.fullName}
+          </p>
+          <p>
+            <strong>Email:</strong> {employee.email}
+          </p>
+          <p>
+            <strong>Phone Number:</strong> {employee.phoneNumber}
+          </p>
+          <p>
+            <strong>Address:</strong> {employee.address}
+          </p>
+          <p>
+            <strong>Salary:</strong> {employee.salary}
+          </p>
 
           <div className="shift-info">
             <h4>Shift Timings</h4>
             {(employee.shiftTimings || []).map((shift, i) => (
               <p key={i}>
-                Start: <strong>{formatTo12Hour(shift.start)}</strong> | 
-                End: <strong>{formatTo12Hour(shift.end)}</strong>
+                Start: <strong>{formatTo12Hour(shift.start)}</strong> | End:{" "}
+                <strong>{formatTo12Hour(shift.end)}</strong>
               </p>
             ))}
           </div>
@@ -109,8 +125,12 @@ const Dashboard = () => {
           videoConstraints={{ facingMode: "user" }}
         />
         <div className="button-group">
-          <button onClick={() => capture("in")} className="punch-btn">Punch In</button>
-          <button onClick={() => capture("out")} className="punch-btn">Punch Out</button>
+          <button onClick={() => capture("in")} className="punch-btn">
+            Punch In
+          </button>
+          <button onClick={() => capture("out")} className="punch-btn">
+            Punch Out
+          </button>
         </div>
       </div>
 
@@ -138,10 +158,22 @@ const Dashboard = () => {
               <div key={entry._id} className="attendance-card">
                 {entry.punches.map((punch, index) => (
                   <div key={index} className="punch-entry">
-                    <p><strong>In:</strong> {punch.inTime} {punch.late && <span className="late">(Late)</span>}</p>
-                    {punch.inPhotoUrl && <img src={punch.inPhotoUrl} alt="In Punch" />}
-                    <p><strong>Out:</strong> {punch.outTime} {punch.overtime && <span className="overtime">(Overtime)</span>}</p>
-                    {punch.outPhotoUrl && <img src={punch.outPhotoUrl} alt="Out Punch" />}
+                    <p>
+                      <strong>In:</strong> {punch.inTime}{" "}
+                      {punch.late && <span className="late">(Late)</span>}
+                    </p>
+                    {punch.inPhotoUrl && (
+                      <img src={punch.inPhotoUrl} alt="In Punch" />
+                    )}
+                    <p>
+                      <strong>Out:</strong> {punch.outTime}{" "}
+                      {punch.overtime && (
+                        <span className="overtime">(Overtime)</span>
+                      )}
+                    </p>
+                    {punch.outPhotoUrl && (
+                      <img src={punch.outPhotoUrl} alt="Out Punch" />
+                    )}
                   </div>
                 ))}
               </div>
