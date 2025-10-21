@@ -238,28 +238,26 @@ const AdminDashboard = () => {
                   <h3 className={styles.empName}>{user.fullName}</h3>
                   <p className={styles.empEmail}>{user.email}</p>
                 </div>
-                <button
-                  className={styles.historyButton}
-                  onClick={() => fetchHistory(user._id)}
-                >
-                  View History
-                </button>
-                {/* New: Monthly Summary Button */}
-                <button
-                  className={styles.historyButton}
-                  onClick={() => fetchMonthlySummary(user._id)}
-                  style={{ marginLeft: "8px" }}
-                >
-                  View Monthly Summary
-                </button>
-                {/* 🔥 Delete Employee Button */}
-                <button
-                  className={styles.deleteButton}
-                  style={{ backgroundColor: "#e74c3c", color: "white" }}
-                  onClick={() => deleteEmployee(user._id)}
-                >
-                  🗑️ Delete
-                </button>
+                <div className={styles.buttonGroup}>
+                  <button
+                    className={styles.historyButton}
+                    onClick={() => fetchHistory(user._id)}
+                  >
+                    View History
+                  </button>
+                  <button
+                    className={styles.historyButton}
+                    onClick={() => fetchMonthlySummary(user._id)}
+                  >
+                    View Monthly Summary
+                  </button>
+                  <button
+                    className={styles.deleteButton}
+                    onClick={() => deleteEmployee(user._id)}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
               </div>
 
               <div className={styles.empDetails}>
