@@ -1,7 +1,8 @@
+// src/components/AdminDashboard.jsx
 import React, { useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import styles from "./AdminDashboard.module.css";
-import moment from "moment"; // add moment import if not already imported
+import moment from "moment";
 import { exportMonthlyReportToPDF } from "../utils/exportPdf";
 
 const AdminDashboard = () => {
@@ -12,20 +13,36 @@ const AdminDashboard = () => {
   const [editPunches, setEditPunches] = useState({});
   const [editEmployees, setEditEmployees] = useState({});
   const [historyUserDetails, setHistoryUserDetails] = useState(null);
-  const [monthlyUserDetails, setMonthlyUserDetails] = useState(null);
 
-  // New states for monthly summary
+  // Monthly states
   const [monthlyUser, setMonthlyUser] = useState(null);
   const [monthlyRecords, setMonthlyRecords] = useState([]);
   const [monthlyTotalMinutes, setMonthlyTotalMinutes] = useState(0);
+  const [monthlyTotalLateMinutes, setMonthlyTotalLateMinutes] = useState(0);
+  const [monthlyTotalOvertimeMinutes, setMonthlyTotalOvertimeMinutes] = useState(0);
+  const [monthlyUserDetails, setMonthlyUserDetails] = useState(null);
 
   const user = historyUserDetails;
 
+  const formatTo12Hour = (timeStr) => {
+    if (!timeStr) return "--";
+    const [hour, minute] = timeStr.split(":");
+    const h = parseInt(hour, 10);
+    const suffix = h >= 12 ? "PM" : "AM";
+    const hour12 = h % 12 === 0 ? 12 : h % 12;
+    return `${hour12}:${minute} ${suffix}`;
+  };
+
+  const formatMinutes = (mins = 0) => {
+    const m = Math.max(0, Number(mins) || 0);
+    const h = Math.floor(m / 60);
+    const r = m % 60;
+    return `${h}h ${r}m`;
+  };
+
   const fetchByDate = async () => {
     try {
-      const res = await axiosClient.get(`/api/admin/attendance`, {
-        params: { date },
-      });
+      const res = await axiosClient.get(`/api/admin/attendance`, { params: { date } });
       const attendance = res.data.attendance || [];
 
       const punches = {};
@@ -45,12 +62,18 @@ const AdminDashboard = () => {
       setAttendanceList(attendance);
       setEditPunches(punches);
       setEditEmployees(employees);
+
+      // Clear history & monthly context on date load
       setHistoryUser(null);
       setHistoryRecords([]);
-      // Clear monthly summary on date load to avoid confusion
+      setHistoryUserDetails(null);
+
       setMonthlyUser(null);
       setMonthlyRecords([]);
       setMonthlyTotalMinutes(0);
+      setMonthlyTotalLateMinutes(0);
+      setMonthlyTotalOvertimeMinutes(0);
+      setMonthlyUserDetails(null);
     } catch (err) {
       console.error("Error fetching attendance by date:", err);
     }
@@ -58,56 +81,46 @@ const AdminDashboard = () => {
 
   const fetchHistory = async (userId) => {
     try {
-      const res = await axiosClient.get(
-        `/api/admin/attendance/${userId}/history`
-      );
+      const res = await axiosClient.get(`/api/admin/attendance/${userId}/history`);
       setHistoryUser(userId);
       setHistoryRecords(res.data.history || []);
-      setHistoryUserDetails(res.data.user); // NEW
-      // Clear monthly summary when viewing history
+      // Optional: if you want user details here, add it in backend response
+      setHistoryUserDetails(res.data.user || null);
+
+      // Clear monthly on history view
       setMonthlyUser(null);
       setMonthlyRecords([]);
       setMonthlyTotalMinutes(0);
+      setMonthlyTotalLateMinutes(0);
+      setMonthlyTotalOvertimeMinutes(0);
+      setMonthlyUserDetails(null);
     } catch (err) {
       console.error("Error fetching history:", err);
     }
   };
 
-  // New: Fetch monthly summary for a user for current month
   const fetchMonthlySummary = async (userId) => {
     const month = new Date().toISOString().slice(0, 7); // YYYY-MM
     try {
-      const res = await axiosClient.get(
-        `/api/admin/attendance/${userId}/month`,
-        {
-          params: { month },
-        }
-      );
-
-      console.log("Monthly Summary Response:", res.data); // 👈 ADD THIS LINE
-      const records = res.data.records || [];
-
-      let totalMin = 0;
-      // Calculate total minutes in month
-      records.forEach((att) => {
-        att.punches.forEach((p) => {
-          if (p.inTime && p.outTime) {
-            const inM = moment(p.inTime, "HH:mm");
-            const outM = moment(p.outTime, "HH:mm");
-            const diff = outM.diff(inM, "minutes");
-            if (diff > 0) totalMin += diff;
-          }
-        });
+      const res = await axiosClient.get(`/api/admin/attendance/${userId}/month`, {
+        params: { month },
       });
+
+      // Expecting shape: { user, records, summary: { totalMinutes, totalLateMinutes, totalOvertimeMinutes }, ... }
+      const records = res.data.records || [];
+      const summary = res.data.summary || {};
 
       setMonthlyUser(userId);
       setMonthlyRecords(records);
-      setMonthlyTotalMinutes(totalMin);
-      setMonthlyUserDetails(res.data.user); // ✅ Set full user object here
+      setMonthlyTotalMinutes(summary.totalMinutes || 0);
+      setMonthlyTotalLateMinutes(summary.totalLateMinutes || 0);
+      setMonthlyTotalOvertimeMinutes(summary.totalOvertimeMinutes || 0);
+      setMonthlyUserDetails(res.data.user || null);
 
       // Clear history when viewing monthly summary
       setHistoryUser(null);
       setHistoryRecords([]);
+      setHistoryUserDetails(null);
     } catch (err) {
       console.error("Error fetching monthly summary:", err);
     }
@@ -133,6 +146,9 @@ const AdminDashboard = () => {
       if (historyUser) {
         fetchHistory(historyUser);
       }
+      if (monthlyUser) {
+        fetchMonthlySummary(monthlyUser);
+      }
     } catch (err) {
       alert("Failed to update punch times");
       console.error("Edit punch error:", err);
@@ -151,9 +167,7 @@ const AdminDashboard = () => {
 
   const handleShiftChange = (userId, index, field, value) => {
     setEditEmployees((prev) => {
-      const shifts = prev[userId]?.shiftTimings
-        ? [...prev[userId].shiftTimings]
-        : [];
+      const shifts = prev[userId]?.shiftTimings ? [...prev[userId].shiftTimings] : [];
       shifts[index] = { ...shifts[index], [field]: value };
       return {
         ...prev,
@@ -168,41 +182,21 @@ const AdminDashboard = () => {
       await axiosClient.put(`/api/admin/employees/${userId}`, updated);
       alert("Employee updated");
       await fetchByDate();
+      if (historyUser) {
+        fetchHistory(historyUser);
+      }
+      if (monthlyUser) {
+        fetchMonthlySummary(monthlyUser);
+      }
     } catch (err) {
       alert("Failed to update employee");
       console.error(err);
     }
   };
 
-  const deleteEmployee = async (userId) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this employee and all their data?"
-      )
-    )
-      return;
-
-    try {
-      await axiosClient.delete(`/api/admin/employees/${userId}`);
-      alert("Employee deleted successfully");
-      await fetchByDate(); // Refresh list after deletion
-    } catch (err) {
-      console.error("Error deleting employee:", err);
-      alert("Failed to delete employee");
-    }
-  };
-
-  const formatTo12Hour = (timeStr) => {
-    if (!timeStr) return "--";
-    const [hour, minute] = timeStr.split(":");
-    const h = parseInt(hour, 10);
-    const suffix = h >= 12 ? "PM" : "AM";
-    const hour12 = h % 12 === 0 ? 12 : h % 12;
-    return `${hour12}:${minute} ${suffix}`;
-  };
-
   useEffect(() => {
     fetchByDate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
 
   return (
@@ -238,26 +232,19 @@ const AdminDashboard = () => {
                   <h3 className={styles.empName}>{user.fullName}</h3>
                   <p className={styles.empEmail}>{user.email}</p>
                 </div>
-                <div className={styles.buttonGroup}>
-                  <button
-                    className={styles.historyButton}
-                    onClick={() => fetchHistory(user._id)}
-                  >
-                    View History
-                  </button>
-                  <button
-                    className={styles.historyButton}
-                    onClick={() => fetchMonthlySummary(user._id)}
-                  >
-                    View Monthly Summary
-                  </button>
-                  <button
-                    className={styles.deleteButton}
-                    onClick={() => deleteEmployee(user._id)}
-                  >
-                    🗑️ Delete
-                  </button>
-                </div>
+                <button
+                  className={styles.historyButton}
+                  onClick={() => fetchHistory(user._id)}
+                >
+                  View History
+                </button>
+                <button
+                  className={styles.historyButton}
+                  onClick={() => fetchMonthlySummary(user._id)}
+                  style={{ marginLeft: "8px" }}
+                >
+                  View Monthly Summary
+                </button>
               </div>
 
               <div className={styles.empDetails}>
@@ -287,11 +274,7 @@ const AdminDashboard = () => {
                     type="text"
                     value={empEdit.phoneNumber}
                     onChange={(e) =>
-                      handleEmployeeChange(
-                        user._id,
-                        "phoneNumber",
-                        e.target.value
-                      )
+                      handleEmployeeChange(user._id, "phoneNumber", e.target.value)
                     }
                   />
                 </div>
@@ -327,12 +310,7 @@ const AdminDashboard = () => {
                         type="time"
                         value={shift.start}
                         onChange={(e) =>
-                          handleShiftChange(
-                            user._id,
-                            i,
-                            "start",
-                            e.target.value
-                          )
+                          handleShiftChange(user._id, i, "start", e.target.value)
                         }
                       />
                     </div>
@@ -357,14 +335,15 @@ const AdminDashboard = () => {
                 Save Employee
               </button>
 
-              {att.totalHours !== undefined && (
+              {att.totalMinutes !== undefined && (
                 <div className={styles.totalWork}>
-                  🕒 Total Work:{" "}
-                  {(() => {
-                    const hours = Math.floor(att.totalMinutes / 60);
-                    const minutes = att.totalMinutes % 60;
-                    return `${hours}h ${minutes}m`;
-                  })()}
+                  🕒 Total Work: {formatMinutes(att.totalMinutes)}
+                </div>
+              )}
+              {(att.totalLateMinutes !== undefined ||
+                att.totalOvertimeMinutes !== undefined) && (
+                <div className={styles.totalWork}>
+                  ⚠️ Late: {formatMinutes(att.totalLateMinutes || 0)} • ⏫ Overtime: {formatMinutes(att.totalOvertimeMinutes || 0)}
                 </div>
               )}
 
@@ -373,92 +352,77 @@ const AdminDashboard = () => {
                 {punches.length === 0 && (
                   <p className={styles.noRecordsSmall}>No punches</p>
                 )}
-                {punches.map((p, idx) => (
-                  <div key={idx} className={styles.punchRow}>
-                    <div className={styles.punchField}>
-                      <label>In</label>
-                      <input
-                        type="time"
-                        value={p.inTime || ""}
-                        onChange={(e) =>
-                          handlePunchChange(
-                            att._id,
-                            idx,
-                            "inTime",
-                            e.target.value
-                          )
-                        }
-                      />
-                      {(() => {
-                        const shift0 = empEdit.shiftTimings?.[0];
-                        if (
-                          shift0?.start &&
-                          p.inTime &&
-                          p.inTime > shift0.start
-                        ) {
-                          return <span className={styles.late}>Late</span>;
-                        }
-                        return null;
-                      })()}
-                    </div>
-                    <div className={styles.punchField}>
-                      <label>Out</label>
-                      <input
-                        type="time"
-                        value={p.outTime || ""}
-                        onChange={(e) =>
-                          handlePunchChange(
-                            att._id,
-                            idx,
-                            "outTime",
-                            e.target.value
-                          )
-                        }
-                      />
-                      {p.overtime && (
-                        <span className={styles.overtime}>Overtime</span>
+                {punches.map((p, idx) => {
+                  // Prefer backend-computed durationInMinutes
+                  let durationMin = p.durationInMinutes;
+                  if (durationMin == null && p.inTime && p.outTime) {
+                    const inM = moment(p.inTime, "HH:mm");
+                    const outM = moment(p.outTime, "HH:mm");
+                    const diff = outM.diff(inM, "minutes");
+                    durationMin = diff > 0 ? diff : 0;
+                  }
+
+                  return (
+                    <div key={idx} className={styles.punchRow}>
+                      <div className={styles.punchField}>
+                        <label>In</label>
+                        <input
+                          type="time"
+                          value={p.inTime || ""}
+                          onChange={(e) =>
+                            handlePunchChange(att._id, idx, "inTime", e.target.value)
+                          }
+                        />
+                        {p.lateMark && (
+                          <span className={styles.late}>
+                            Late{p.lateMinutes ? ` (+${p.lateMinutes}m)` : ""}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className={styles.punchField}>
+                        <label>Out</label>
+                        <input
+                          type="time"
+                          value={p.outTime || ""}
+                          onChange={(e) =>
+                            handlePunchChange(att._id, idx, "outTime", e.target.value)
+                          }
+                        />
+                        {p.overtimeMark && (
+                          <span className={styles.overtime}>
+                            Overtime{p.overtimeMinutes ? ` (+${p.overtimeMinutes}m)` : ""}
+                          </span>
+                        )}
+                      </div>
+
+                      {durationMin != null && (
+                        <div className={styles.durationDisplay}>
+                          ⏱️ Duration: {formatMinutes(durationMin)}
+                        </div>
                       )}
+
+                      <button
+                        className={styles.savePunchButton}
+                        onClick={() => savePunchChanges(att._id, idx)}
+                      >
+                        Save
+                      </button>
                     </div>
-                    {p.inTime &&
-                      p.outTime &&
-                      (() => {
-                        const [inHour, inMin] = p.inTime.split(":").map(Number);
-                        const [outHour, outMin] = p.outTime
-                          .split(":")
-                          .map(Number);
-                        const inTotal = inHour * 60 + inMin;
-                        const outTotal = outHour * 60 + outMin;
-                        const duration = outTotal - inTotal;
-                        const hours = Math.floor(duration / 60);
-                        const minutes = duration % 60;
-
-                        return (
-                          <div className={styles.durationDisplay}>
-                            ⏱️ Duration: {hours}h {minutes}m
-                          </div>
-                        );
-                      })()}
-
-                    <button
-                      className={styles.savePunchButton}
-                      onClick={() => savePunchChanges(att._id, idx)}
-                    >
-                      Save
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
         })}
       </div>
+
       {/* Monthly Summary Section */}
       {monthlyUser && (
         <div className={styles.historySection}>
           <h3 className={styles.historyHeading}>Monthly Summary</h3>
           <p>
-            Total Worked: {Math.floor(monthlyTotalMinutes / 60)}h{" "}
-            {monthlyTotalMinutes % 60}m
+            Total Worked: {formatMinutes(monthlyTotalMinutes)} • Late: {formatMinutes(monthlyTotalLateMinutes)} • Overtime: {formatMinutes(monthlyTotalOvertimeMinutes)}
           </p>
 
           <button
@@ -485,21 +449,7 @@ const AdminDashboard = () => {
           {monthlyRecords.map((att) => (
             <div key={att._id} className={styles.historyCard}>
               <p>
-                <strong>Date:</strong> {att.date} —{" "}
-                {(() => {
-                  let total = 0;
-                  att.punches.forEach((p) => {
-                    if (p.inTime && p.outTime) {
-                      const [inH, inM] = p.inTime.split(":").map(Number);
-                      const [outH, outM] = p.outTime.split(":").map(Number);
-                      const duration = outH * 60 + outM - (inH * 60 + inM);
-                      if (duration > 0) total += duration;
-                    }
-                  });
-                  const h = Math.floor(total / 60);
-                  const m = total % 60;
-                  return `⏱️ Worked: ${h}h ${m}m`;
-                })()}
+                <strong>Date:</strong> {att.date} — ⏱️ Worked: {formatMinutes(att.dayMinutes || att.totalMinutes || 0)} • ⚠️ Late: {formatMinutes(att.totalLateMinutes || 0)} • ⏫ OT: {formatMinutes(att.totalOvertimeMinutes || 0)}
               </p>
 
               {att.punches.length === 0 && <p>No punches</p>}
@@ -507,7 +457,7 @@ const AdminDashboard = () => {
                 <div key={idx} className={styles.historyPunch}>
                   <p>
                     <strong>In:</strong> {formatTo12Hour(p.inTime)}{" "}
-                    {p.late && <span className={styles.late}>(Late)</span>}
+                    {p.lateMark && <span className={styles.late}>(Late{p.lateMinutes ? ` +${p.lateMinutes}m` : ""})</span>}
                   </p>
                   {p.inPhotoUrl && (
                     <img
@@ -519,8 +469,8 @@ const AdminDashboard = () => {
                   )}
                   <p>
                     <strong>Out:</strong> {formatTo12Hour(p.outTime)}{" "}
-                    {p.overtime && (
-                      <span className={styles.overtime}>(Overtime)</span>
+                    {p.overtimeMark && (
+                      <span className={styles.overtime}>(Overtime{p.overtimeMinutes ? ` +${p.overtimeMinutes}m` : ""})</span>
                     )}
                   </p>
                   {p.outPhotoUrl && (
@@ -530,6 +480,11 @@ const AdminDashboard = () => {
                       className={styles.punchImage}
                       style={{ maxWidth: "100px", marginBottom: "8px" }}
                     />
+                  )}
+                  {p.durationInMinutes != null && (
+                    <p className={styles.durationSmall}>
+                      ⏱️ Worked: {formatMinutes(p.durationInMinutes)}
+                    </p>
                   )}
                 </div>
               ))}
@@ -559,7 +514,7 @@ const AdminDashboard = () => {
           {historyRecords.length === 0 && <p>No history found.</p>}
 
           {[...historyRecords]
-            .sort((a, b) => new Date(b.date) - new Date(a.date)) // latest first
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
             .map((att) => (
               <div key={att._id} className={styles.historyCard}>
                 <p>
@@ -571,16 +526,7 @@ const AdminDashboard = () => {
                   <div key={idx} className={styles.historyPunch}>
                     <p>
                       <strong>In:</strong> {formatTo12Hour(p.inTime)}{" "}
-                      {(() => {
-                        const userObj = attendanceList.find(
-                          (a) => a.user._id === historyUser
-                        )?.user;
-                        const shift = userObj?.shiftTimings?.[0];
-                        if (shift?.start && p.inTime > shift.start) {
-                          return <span className={styles.late}>(Late)</span>;
-                        }
-                        return null;
-                      })()}
+                      {p.lateMark && <span className={styles.late}>(Late{p.lateMinutes ? ` +${p.lateMinutes}m` : ""})</span>}
                     </p>
                     {p.inPhotoUrl && (
                       <img
@@ -597,8 +543,8 @@ const AdminDashboard = () => {
 
                     <p>
                       <strong>Out:</strong> {formatTo12Hour(p.outTime)}{" "}
-                      {p.overtime && (
-                        <span className={styles.overtime}>(Overtime)</span>
+                      {p.overtimeMark && (
+                        <span className={styles.overtime}>(Overtime{p.overtimeMinutes ? ` +${p.overtimeMinutes}m` : ""})</span>
                       )}
                     </p>
                     {p.outPhotoUrl && (
@@ -614,29 +560,32 @@ const AdminDashboard = () => {
                       />
                     )}
 
-                    {p.inTime &&
-                      p.outTime &&
-                      (() => {
-                        const [inHour, inMin] = p.inTime.split(":").map(Number);
-                        const [outHour, outMin] = p.outTime
-                          .split(":")
-                          .map(Number);
-                        const inTotal = inHour * 60 + inMin;
-                        const outTotal = outHour * 60 + outMin;
-                        const duration = outTotal - inTotal;
-                        const hours = Math.floor(duration / 60);
-                        const minutes = duration % 60;
-                        return (
-                          <p className={styles.durationSmall}>
-                            ⏱️ Worked: {hours}h {minutes}m
-                          </p>
-                        );
-                      })()}
+                    {p.durationInMinutes != null ? (
+                      <p className={styles.durationSmall}>
+                        ⏱️ Worked: {formatMinutes(p.durationInMinutes)}
+                      </p>
+                    ) : (
+                      p.inTime &&
+                      p.outTime && (
+                        <p className={styles.durationSmall}>
+                          ⏱️ Worked: {formatMinutes(
+                            Math.max(
+                              0,
+                              moment(p.outTime, "HH:mm").diff(
+                                moment(p.inTime, "HH:mm"),
+                                "minutes"
+                              )
+                            )
+                          )}
+                        </p>
+                      )
+                    )}
                   </div>
                 ))}
-                {att.totalHours !== undefined && (
+
+                {att.totalMinutes !== undefined && (
                   <p className={styles.totalDurationSmall}>
-                    Total Duration: {att.totalHours}h {att.totalMinutes}m
+                    Total Worked: {formatMinutes(att.totalMinutes)} • Late: {formatMinutes(att.totalLateMinutes || 0)} • OT: {formatMinutes(att.totalOvertimeMinutes || 0)}
                   </p>
                 )}
               </div>

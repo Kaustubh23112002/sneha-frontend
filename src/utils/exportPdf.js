@@ -1,5 +1,12 @@
+// utils/pdf/exportMonthlyReportToPDF.js (or existing file you showed)
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
+function fmtHM(totalMinutes) {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}h ${m}m`;
+}
 
 export const exportMonthlyReportToPDF = (user, records, totalMinutes) => {
   const doc = new jsPDF();
@@ -7,16 +14,19 @@ export const exportMonthlyReportToPDF = (user, records, totalMinutes) => {
   doc.setFontSize(16);
   doc.text(`Monthly Attendance Report`, 14, 15);
 
-
   doc.setFontSize(12);
   doc.text(`Name: ${user?.fullName || "N/A"}`, 14, 25);
   doc.text(`Email: ${user?.email || "N/A"}`, 14, 32);
 
-  console.log("User passed to PDF export:", user);
-
   const totalHours = Math.floor(totalMinutes / 60);
   const totalMins = totalMinutes % 60;
   doc.text(`Total Worked: ${totalHours}h ${totalMins}m`, 14, 40);
+
+  const totalLate = records.reduce((s, r) => s + (r.totalLateMinutes ?? 0), 0);
+  const totalOT = records.reduce((s, r) => s + (r.totalOvertimeMinutes ?? 0), 0);
+
+  doc.text(`Total Late: ${fmtHM(totalLate)}`, 14, 47);
+  doc.text(`Total Overtime: ${fmtHM(totalOT)}`, 14, 54);
 
   const tableData = records.map((att) => {
     let dayTotal = 0;
@@ -37,12 +47,18 @@ export const exportMonthlyReportToPDF = (user, records, totalMinutes) => {
     const dH = Math.floor(dayTotal / 60);
     const dM = dayTotal % 60;
 
-    return [att.date, punches.join("\n"), `${dH}h ${dM}m`];
+    return [
+      att.date,
+      punches.join("\n"),
+      `${dH}h ${dM}m`,
+      fmtHM(att.totalLateMinutes ?? 0),
+      fmtHM(att.totalOvertimeMinutes ?? 0),
+    ];
   });
 
   autoTable(doc, {
-    startY: 50,
-    head: [["Date", "Punches", "Worked"]],
+    startY: 62,
+    head: [["Date", "Punches", "Worked", "Late", "Overtime"]],
     body: tableData,
     styles: { fontSize: 10 },
   });
