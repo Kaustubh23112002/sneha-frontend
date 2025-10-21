@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import styles from "./AdminDashboard.module.css";
-import moment from "moment";
+import moment from "moment"; // fallback for local diffs if needed
 import { exportMonthlyReportToPDF } from "../utils/exportPdf";
 
 const AdminDashboard = () => {
@@ -14,7 +14,7 @@ const AdminDashboard = () => {
   const [editEmployees, setEditEmployees] = useState({});
   const [historyUserDetails, setHistoryUserDetails] = useState(null);
 
-  // Monthly states
+  // Monthly summary states
   const [monthlyUser, setMonthlyUser] = useState(null);
   const [monthlyRecords, setMonthlyRecords] = useState([]);
   const [monthlyTotalMinutes, setMonthlyTotalMinutes] = useState(0);
@@ -42,7 +42,9 @@ const AdminDashboard = () => {
 
   const fetchByDate = async () => {
     try {
-      const res = await axiosClient.get(`/api/admin/attendance`, { params: { date } });
+      const res = await axiosClient.get(`/api/admin/attendance`, {
+        params: { date },
+      });
       const attendance = res.data.attendance || [];
 
       const punches = {};
@@ -63,7 +65,7 @@ const AdminDashboard = () => {
       setEditPunches(punches);
       setEditEmployees(employees);
 
-      // Clear history & monthly context on date load
+      // Clear history & monthly when changing date
       setHistoryUser(null);
       setHistoryRecords([]);
       setHistoryUserDetails(null);
@@ -84,7 +86,6 @@ const AdminDashboard = () => {
       const res = await axiosClient.get(`/api/admin/attendance/${userId}/history`);
       setHistoryUser(userId);
       setHistoryRecords(res.data.history || []);
-      // Optional: if you want user details here, add it in backend response
       setHistoryUserDetails(res.data.user || null);
 
       // Clear monthly on history view
@@ -99,6 +100,7 @@ const AdminDashboard = () => {
     }
   };
 
+  // Monthly summary for current month
   const fetchMonthlySummary = async (userId) => {
     const month = new Date().toISOString().slice(0, 7); // YYYY-MM
     try {
@@ -106,7 +108,6 @@ const AdminDashboard = () => {
         params: { month },
       });
 
-      // Expecting shape: { user, records, summary: { totalMinutes, totalLateMinutes, totalOvertimeMinutes }, ... }
       const records = res.data.records || [];
       const summary = res.data.summary || {};
 
@@ -194,6 +195,18 @@ const AdminDashboard = () => {
     }
   };
 
+  const deleteEmployee = async (userId) => {
+    if (!window.confirm("Are you sure you want to delete this employee and all their data?")) return;
+    try {
+      await axiosClient.delete(`/api/admin/employees/${userId}`);
+      alert("Employee deleted successfully");
+      await fetchByDate();
+    } catch (err) {
+      console.error("Error deleting employee:", err);
+      alert("Failed to delete employee");
+    }
+  };
+
   useEffect(() => {
     fetchByDate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -232,19 +245,26 @@ const AdminDashboard = () => {
                   <h3 className={styles.empName}>{user.fullName}</h3>
                   <p className={styles.empEmail}>{user.email}</p>
                 </div>
-                <button
-                  className={styles.historyButton}
-                  onClick={() => fetchHistory(user._id)}
-                >
-                  View History
-                </button>
-                <button
-                  className={styles.historyButton}
-                  onClick={() => fetchMonthlySummary(user._id)}
-                  style={{ marginLeft: "8px" }}
-                >
-                  View Monthly Summary
-                </button>
+                <div className={styles.buttonGroup}>
+                  <button
+                    className={styles.historyButton}
+                    onClick={() => fetchHistory(user._id)}
+                  >
+                    View History
+                  </button>
+                  <button
+                    className={styles.historyButton}
+                    onClick={() => fetchMonthlySummary(user._id)}
+                  >
+                    View Monthly Summary
+                  </button>
+                  <button
+                    className={styles.deleteButton}
+                    onClick={() => deleteEmployee(user._id)}
+                  >
+                    🗑️ Delete
+                  </button>
+                </div>
               </div>
 
               <div className={styles.empDetails}>
@@ -353,7 +373,7 @@ const AdminDashboard = () => {
                   <p className={styles.noRecordsSmall}>No punches</p>
                 )}
                 {punches.map((p, idx) => {
-                  // Prefer backend-computed durationInMinutes
+                  // Prefer backend-computed minutes; fallback to local calc if needed
                   let durationMin = p.durationInMinutes;
                   if (durationMin == null && p.inTime && p.outTime) {
                     const inM = moment(p.inTime, "HH:mm");
@@ -481,10 +501,25 @@ const AdminDashboard = () => {
                       style={{ maxWidth: "100px", marginBottom: "8px" }}
                     />
                   )}
-                  {p.durationInMinutes != null && (
+                  {p.durationInMinutes != null ? (
                     <p className={styles.durationSmall}>
                       ⏱️ Worked: {formatMinutes(p.durationInMinutes)}
                     </p>
+                  ) : (
+                    p.inTime &&
+                    p.outTime && (
+                      <p className={styles.durationSmall}>
+                        ⏱️ Worked: {formatMinutes(
+                          Math.max(
+                            0,
+                            moment(p.outTime, "HH:mm").diff(
+                              moment(p.inTime, "HH:mm"),
+                              "minutes"
+                            )
+                          )
+                        )}
+                      </p>
+                    )
                   )}
                 </div>
               ))}
