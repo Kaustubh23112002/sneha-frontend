@@ -8,6 +8,8 @@ export const logoutUser = async (navigate) => {
     console.error("Logout error:", err.message);
   }
 
+  localStorage.removeItem("token");
   localStorage.removeItem("user");
+
   navigate("/login");
 };

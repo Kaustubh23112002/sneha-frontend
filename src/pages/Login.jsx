@@ -23,6 +23,11 @@ const Login = ({ setUser }) => {
       const user = res.data?.user;
       const role = user?.role;
 
+      // NEW: persist token for header auth
+      if (res.data?.token) {
+        localStorage.setItem("token", res.data.token);
+      }
+
       localStorage.setItem("user", JSON.stringify(user));
       setUser(user);
 
