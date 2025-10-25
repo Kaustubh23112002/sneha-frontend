@@ -1,4 +1,4 @@
-// utils/pdf/exportMonthlyReportToPDF.js (or existing file you showed)
+// utils/pdf/exportMonthlyReportToPDF.js
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -18,9 +18,10 @@ export const exportMonthlyReportToPDF = (user, records, totalMinutes) => {
   doc.text(`Name: ${user?.fullName || "N/A"}`, 14, 25);
   doc.text(`Email: ${user?.email || "N/A"}`, 14, 32);
 
+  // totalMinutes passed in now excludes overtime (from backend summary)
   const totalHours = Math.floor(totalMinutes / 60);
   const totalMins = totalMinutes % 60;
-  doc.text(`Total Worked: ${totalHours}h ${totalMins}m`, 14, 40);
+  doc.text(`Total Worked (Regular): ${totalHours}h ${totalMins}m`, 14, 40);
 
   const totalLate = records.reduce((s, r) => s + (r.totalLateMinutes ?? 0), 0);
   const totalOT = records.reduce((s, r) => s + (r.totalOvertimeMinutes ?? 0), 0);
@@ -29,30 +30,20 @@ export const exportMonthlyReportToPDF = (user, records, totalMinutes) => {
   doc.text(`Total Overtime: ${fmtHM(totalOT)}`, 14, 54);
 
   const tableData = records.map((att) => {
-    let dayTotal = 0;
-    const punches = att.punches.map((p) => {
-      let durationStr = "";
-      if (p.inTime && p.outTime) {
-        const [inH, inM] = p.inTime.split(":").map(Number);
-        const [outH, outM] = p.outTime.split(":").map(Number);
-        const duration = outH * 60 + outM - (inH * 60 + inM);
-        if (duration > 0) dayTotal += duration;
-        const dH = Math.floor(duration / 60);
-        const dM = duration % 60;
-        durationStr = ` (${dH}h ${dM}m)`;
-      }
-      return `In: ${p.inTime || "--"} Out: ${p.outTime || "--"}${durationStr}`;
-    });
+    // Use backend-computed dayMinutes (excludes overtime)
+    const dayWorked = att.dayMinutes ?? att.totalMinutes ?? 0;
 
-    const dH = Math.floor(dayTotal / 60);
-    const dM = dayTotal % 60;
+    // Format punch times for display
+    const punches = att.punches.map((p) => {
+      return `In: ${p.inTime || "--"} Out: ${p.outTime || "--"}`;
+    });
 
     return [
       att.date,
       punches.join("\n"),
-      `${dH}h ${dM}m`,
-      fmtHM(att.totalLateMinutes ?? 0),
-      fmtHM(att.totalOvertimeMinutes ?? 0),
+      fmtHM(dayWorked),                         // Regular worked hours (excludes OT)
+      fmtHM(att.totalLateMinutes ?? 0),         // Late minutes
+      fmtHM(att.totalOvertimeMinutes ?? 0),     // Overtime minutes
     ];
   });
 
