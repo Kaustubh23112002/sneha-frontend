@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import styles from "./AdminDashboard.module.css";
-import moment from "moment"; // fallback for local diffs if needed
+import moment from "moment"; // still used for any fallback if ever needed
 import { exportMonthlyReportToPDF } from "../utils/exportPdf";
 
 const AdminDashboard = () => {
@@ -100,7 +100,7 @@ const AdminDashboard = () => {
     }
   };
 
-  // Monthly summary for current month
+  // Monthly summary for current month (backend already respects month param)
   const fetchMonthlySummary = async (userId) => {
     const month = new Date().toISOString().slice(0, 7); // YYYY-MM
     try {
@@ -355,6 +355,7 @@ const AdminDashboard = () => {
                 Save Employee
               </button>
 
+              {/* Totals from backend: totalMinutes excludes OT > 30; late & OT separate */}
               {att.totalMinutes !== undefined && (
                 <div className={styles.totalWork}>
                   🕒 Total Work: {formatMinutes(att.totalMinutes)}
@@ -363,7 +364,8 @@ const AdminDashboard = () => {
               {(att.totalLateMinutes !== undefined ||
                 att.totalOvertimeMinutes !== undefined) && (
                 <div className={styles.totalWork}>
-                  ⚠️ Late: {formatMinutes(att.totalLateMinutes || 0)} • ⏫ Overtime: {formatMinutes(att.totalOvertimeMinutes || 0)}
+                  ⚠️ Late: {formatMinutes(att.totalLateMinutes || 0)} • ⏫ Overtime:{" "}
+                  {formatMinutes(att.totalOvertimeMinutes || 0)}
                 </div>
               )}
 
@@ -373,14 +375,8 @@ const AdminDashboard = () => {
                   <p className={styles.noRecordsSmall}>No punches</p>
                 )}
                 {punches.map((p, idx) => {
-                  // Prefer backend-computed minutes; fallback to local calc if needed
-                  let durationMin = p.durationInMinutes;
-                  if (durationMin == null && p.inTime && p.outTime) {
-                    const inM = moment(p.inTime, "HH:mm");
-                    const outM = moment(p.outTime, "HH:mm");
-                    const diff = outM.diff(inM, "minutes");
-                    durationMin = diff > 0 ? diff : 0;
-                  }
+                  // Always trust backend durationInMinutes (already handles overnight & OT)
+                  const durationMin = p.durationInMinutes;
 
                   return (
                     <div key={idx} className={styles.punchRow}>
@@ -411,7 +407,8 @@ const AdminDashboard = () => {
                         />
                         {p.overtimeMark && (
                           <span className={styles.overtime}>
-                            Overtime{p.overtimeMinutes ? ` (+${p.overtimeMinutes}m)` : ""}
+                            Overtime
+                            {p.overtimeMinutes ? ` (+${p.overtimeMinutes}m)` : ""}
                           </span>
                         )}
                       </div>
@@ -442,7 +439,9 @@ const AdminDashboard = () => {
         <div className={styles.historySection}>
           <h3 className={styles.historyHeading}>Monthly Summary</h3>
           <p>
-            Total Worked: {formatMinutes(monthlyTotalMinutes)} • Late: {formatMinutes(monthlyTotalLateMinutes)} • Overtime: {formatMinutes(monthlyTotalOvertimeMinutes)}
+            Total Worked: {formatMinutes(monthlyTotalMinutes)} • Late:{" "}
+            {formatMinutes(monthlyTotalLateMinutes)} • Overtime:{" "}
+            {formatMinutes(monthlyTotalOvertimeMinutes)}
           </p>
 
           <button
@@ -469,7 +468,10 @@ const AdminDashboard = () => {
           {monthlyRecords.map((att) => (
             <div key={att._id} className={styles.historyCard}>
               <p>
-                <strong>Date:</strong> {att.date} — ⏱️ Worked: {formatMinutes(att.dayMinutes || att.totalMinutes || 0)} • ⚠️ Late: {formatMinutes(att.totalLateMinutes || 0)} • ⏫ OT: {formatMinutes(att.totalOvertimeMinutes || 0)}
+                <strong>Date:</strong> {att.date} — ⏱️ Worked:{" "}
+                {formatMinutes(att.dayMinutes || att.totalMinutes || 0)} • ⚠️ Late:{" "}
+                {formatMinutes(att.totalLateMinutes || 0)} • ⏫ OT:{" "}
+                {formatMinutes(att.totalOvertimeMinutes || 0)}
               </p>
 
               {att.punches.length === 0 && <p>No punches</p>}
@@ -477,7 +479,11 @@ const AdminDashboard = () => {
                 <div key={idx} className={styles.historyPunch}>
                   <p>
                     <strong>In:</strong> {formatTo12Hour(p.inTime)}{" "}
-                    {p.lateMark && <span className={styles.late}>(Late{p.lateMinutes ? ` +${p.lateMinutes}m` : ""})</span>}
+                    {p.lateMark && (
+                      <span className={styles.late}>
+                        (Late{p.lateMinutes ? ` +${p.lateMinutes}m` : ""})
+                      </span>
+                    )}
                   </p>
                   {p.inPhotoUrl && (
                     <img
@@ -490,7 +496,9 @@ const AdminDashboard = () => {
                   <p>
                     <strong>Out:</strong> {formatTo12Hour(p.outTime)}{" "}
                     {p.overtimeMark && (
-                      <span className={styles.overtime}>(Overtime{p.overtimeMinutes ? ` +${p.overtimeMinutes}m` : ""})</span>
+                      <span className={styles.overtime}>
+                        (Overtime{p.overtimeMinutes ? ` +${p.overtimeMinutes}m` : ""})
+                      </span>
                     )}
                   </p>
                   {p.outPhotoUrl && (
@@ -501,25 +509,10 @@ const AdminDashboard = () => {
                       style={{ maxWidth: "100px", marginBottom: "8px" }}
                     />
                   )}
-                  {p.durationInMinutes != null ? (
+                  {p.durationInMinutes != null && (
                     <p className={styles.durationSmall}>
                       ⏱️ Worked: {formatMinutes(p.durationInMinutes)}
                     </p>
-                  ) : (
-                    p.inTime &&
-                    p.outTime && (
-                      <p className={styles.durationSmall}>
-                        ⏱️ Worked: {formatMinutes(
-                          Math.max(
-                            0,
-                            moment(p.outTime, "HH:mm").diff(
-                              moment(p.inTime, "HH:mm"),
-                              "minutes"
-                            )
-                          )
-                        )}
-                      </p>
-                    )
                   )}
                 </div>
               ))}
@@ -561,7 +554,11 @@ const AdminDashboard = () => {
                   <div key={idx} className={styles.historyPunch}>
                     <p>
                       <strong>In:</strong> {formatTo12Hour(p.inTime)}{" "}
-                      {p.lateMark && <span className={styles.late}>(Late{p.lateMinutes ? ` +${p.lateMinutes}m` : ""})</span>}
+                      {p.lateMark && (
+                        <span className={styles.late}>
+                          (Late{p.lateMinutes ? ` +${p.lateMinutes}m` : ""})
+                        </span>
+                      )}
                     </p>
                     {p.inPhotoUrl && (
                       <img
@@ -579,7 +576,9 @@ const AdminDashboard = () => {
                     <p>
                       <strong>Out:</strong> {formatTo12Hour(p.outTime)}{" "}
                       {p.overtimeMark && (
-                        <span className={styles.overtime}>(Overtime{p.overtimeMinutes ? ` +${p.overtimeMinutes}m` : ""})</span>
+                        <span className={styles.overtime}>
+                          (Overtime{p.overtimeMinutes ? ` +${p.overtimeMinutes}m` : ""})
+                        </span>
                       )}
                     </p>
                     {p.outPhotoUrl && (
@@ -595,32 +594,19 @@ const AdminDashboard = () => {
                       />
                     )}
 
-                    {p.durationInMinutes != null ? (
+                    {p.durationInMinutes != null && (
                       <p className={styles.durationSmall}>
                         ⏱️ Worked: {formatMinutes(p.durationInMinutes)}
                       </p>
-                    ) : (
-                      p.inTime &&
-                      p.outTime && (
-                        <p className={styles.durationSmall}>
-                          ⏱️ Worked: {formatMinutes(
-                            Math.max(
-                              0,
-                              moment(p.outTime, "HH:mm").diff(
-                                moment(p.inTime, "HH:mm"),
-                                "minutes"
-                              )
-                            )
-                          )}
-                        </p>
-                      )
                     )}
                   </div>
                 ))}
 
                 {att.totalMinutes !== undefined && (
                   <p className={styles.totalDurationSmall}>
-                    Total Worked: {formatMinutes(att.totalMinutes)} • Late: {formatMinutes(att.totalLateMinutes || 0)} • OT: {formatMinutes(att.totalOvertimeMinutes || 0)}
+                    Total Worked: {formatMinutes(att.totalMinutes)} • Late:{" "}
+                    {formatMinutes(att.totalLateMinutes || 0)} • OT:{" "}
+                    {formatMinutes(att.totalOvertimeMinutes || 0)}
                   </p>
                 )}
               </div>
