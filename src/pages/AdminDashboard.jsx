@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import styles from "./AdminDashboard.module.css";
-import moment from "moment"; // still used for any fallback if ever needed
+import moment from "moment"; // optional now; only needed if you later add other time logic
 import { exportMonthlyReportToPDF } from "../utils/exportPdf";
 
 const AdminDashboard = () => {
@@ -13,13 +13,17 @@ const AdminDashboard = () => {
   const [editPunches, setEditPunches] = useState({});
   const [editEmployees, setEditEmployees] = useState({});
   const [historyUserDetails, setHistoryUserDetails] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(() =>
+    new Date().toISOString().slice(0, 7)
+  );
 
   // Monthly summary states
   const [monthlyUser, setMonthlyUser] = useState(null);
   const [monthlyRecords, setMonthlyRecords] = useState([]);
   const [monthlyTotalMinutes, setMonthlyTotalMinutes] = useState(0);
   const [monthlyTotalLateMinutes, setMonthlyTotalLateMinutes] = useState(0);
-  const [monthlyTotalOvertimeMinutes, setMonthlyTotalOvertimeMinutes] = useState(0);
+  const [monthlyTotalOvertimeMinutes, setMonthlyTotalOvertimeMinutes] =
+    useState(0);
   const [monthlyUserDetails, setMonthlyUserDetails] = useState(null);
 
   const user = historyUserDetails;
@@ -83,7 +87,9 @@ const AdminDashboard = () => {
 
   const fetchHistory = async (userId) => {
     try {
-      const res = await axiosClient.get(`/api/admin/attendance/${userId}/history`);
+      const res = await axiosClient.get(
+        `/api/admin/attendance/${userId}/history`
+      );
       setHistoryUser(userId);
       setHistoryRecords(res.data.history || []);
       setHistoryUserDetails(res.data.user || null);
@@ -100,13 +106,15 @@ const AdminDashboard = () => {
     }
   };
 
-  // Monthly summary for current month (backend already respects month param)
+  // Monthly summary for selected month
   const fetchMonthlySummary = async (userId) => {
-    const month = new Date().toISOString().slice(0, 7); // YYYY-MM
     try {
-      const res = await axiosClient.get(`/api/admin/attendance/${userId}/month`, {
-        params: { month },
-      });
+      const res = await axiosClient.get(
+        `/api/admin/attendance/${userId}/month`,
+        {
+          params: { month: selectedMonth }, // use the selected month
+        }
+      );
 
       const records = res.data.records || [];
       const summary = res.data.summary || {};
@@ -118,7 +126,7 @@ const AdminDashboard = () => {
       setMonthlyTotalOvertimeMinutes(summary.totalOvertimeMinutes || 0);
       setMonthlyUserDetails(res.data.user || null);
 
-      // Clear history when viewing monthly summary
+      // clear history...
       setHistoryUser(null);
       setHistoryRecords([]);
       setHistoryUserDetails(null);
@@ -168,7 +176,9 @@ const AdminDashboard = () => {
 
   const handleShiftChange = (userId, index, field, value) => {
     setEditEmployees((prev) => {
-      const shifts = prev[userId]?.shiftTimings ? [...prev[userId].shiftTimings] : [];
+      const shifts = prev[userId]?.shiftTimings
+        ? [...prev[userId].shiftTimings]
+        : [];
       shifts[index] = { ...shifts[index], [field]: value };
       return {
         ...prev,
@@ -196,7 +206,12 @@ const AdminDashboard = () => {
   };
 
   const deleteEmployee = async (userId) => {
-    if (!window.confirm("Are you sure you want to delete this employee and all their data?")) return;
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this employee and all their data?"
+      )
+    )
+      return;
     try {
       await axiosClient.delete(`/api/admin/employees/${userId}`);
       alert("Employee deleted successfully");
@@ -222,6 +237,13 @@ const AdminDashboard = () => {
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className={styles.dateInput}
+          />
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className={styles.dateInput}
+            style={{ marginLeft: "10px" }}
           />
           <button onClick={fetchByDate} className={styles.loadButton}>
             Load
@@ -294,7 +316,11 @@ const AdminDashboard = () => {
                     type="text"
                     value={empEdit.phoneNumber}
                     onChange={(e) =>
-                      handleEmployeeChange(user._id, "phoneNumber", e.target.value)
+                      handleEmployeeChange(
+                        user._id,
+                        "phoneNumber",
+                        e.target.value
+                      )
                     }
                   />
                 </div>
@@ -330,7 +356,12 @@ const AdminDashboard = () => {
                         type="time"
                         value={shift.start}
                         onChange={(e) =>
-                          handleShiftChange(user._id, i, "start", e.target.value)
+                          handleShiftChange(
+                            user._id,
+                            i,
+                            "start",
+                            e.target.value
+                          )
                         }
                       />
                     </div>
@@ -355,7 +386,6 @@ const AdminDashboard = () => {
                 Save Employee
               </button>
 
-              {/* Totals from backend: totalMinutes excludes OT > 30; late & OT separate */}
               {att.totalMinutes !== undefined && (
                 <div className={styles.totalWork}>
                   🕒 Total Work: {formatMinutes(att.totalMinutes)}
@@ -364,8 +394,8 @@ const AdminDashboard = () => {
               {(att.totalLateMinutes !== undefined ||
                 att.totalOvertimeMinutes !== undefined) && (
                 <div className={styles.totalWork}>
-                  ⚠️ Late: {formatMinutes(att.totalLateMinutes || 0)} • ⏫ Overtime:{" "}
-                  {formatMinutes(att.totalOvertimeMinutes || 0)}
+                  ⚠️ Late: {formatMinutes(att.totalLateMinutes || 0)} • ⏫
+                  Overtime: {formatMinutes(att.totalOvertimeMinutes || 0)}
                 </div>
               )}
 
@@ -375,7 +405,7 @@ const AdminDashboard = () => {
                   <p className={styles.noRecordsSmall}>No punches</p>
                 )}
                 {punches.map((p, idx) => {
-                  // Always trust backend durationInMinutes (already handles overnight & OT)
+                  // Trust backend duration; do not recompute with moment
                   const durationMin = p.durationInMinutes;
 
                   return (
@@ -386,7 +416,12 @@ const AdminDashboard = () => {
                           type="time"
                           value={p.inTime || ""}
                           onChange={(e) =>
-                            handlePunchChange(att._id, idx, "inTime", e.target.value)
+                            handlePunchChange(
+                              att._id,
+                              idx,
+                              "inTime",
+                              e.target.value
+                            )
                           }
                         />
                         {p.lateMark && (
@@ -402,13 +437,20 @@ const AdminDashboard = () => {
                           type="time"
                           value={p.outTime || ""}
                           onChange={(e) =>
-                            handlePunchChange(att._id, idx, "outTime", e.target.value)
+                            handlePunchChange(
+                              att._id,
+                              idx,
+                              "outTime",
+                              e.target.value
+                            )
                           }
                         />
                         {p.overtimeMark && (
                           <span className={styles.overtime}>
                             Overtime
-                            {p.overtimeMinutes ? ` (+${p.overtimeMinutes}m)` : ""}
+                            {p.overtimeMinutes
+                              ? ` (+${p.overtimeMinutes}m)`
+                              : ""}
                           </span>
                         )}
                       </div>
@@ -469,8 +511,8 @@ const AdminDashboard = () => {
             <div key={att._id} className={styles.historyCard}>
               <p>
                 <strong>Date:</strong> {att.date} — ⏱️ Worked:{" "}
-                {formatMinutes(att.dayMinutes || att.totalMinutes || 0)} • ⚠️ Late:{" "}
-                {formatMinutes(att.totalLateMinutes || 0)} • ⏫ OT:{" "}
+                {formatMinutes(att.dayMinutes || att.totalMinutes || 0)} • ⚠️
+                Late: {formatMinutes(att.totalLateMinutes || 0)} • ⏫ OT:{" "}
                 {formatMinutes(att.totalOvertimeMinutes || 0)}
               </p>
 
@@ -497,7 +539,8 @@ const AdminDashboard = () => {
                     <strong>Out:</strong> {formatTo12Hour(p.outTime)}{" "}
                     {p.overtimeMark && (
                       <span className={styles.overtime}>
-                        (Overtime{p.overtimeMinutes ? ` +${p.overtimeMinutes}m` : ""})
+                        (Overtime
+                        {p.overtimeMinutes ? ` +${p.overtimeMinutes}m` : ""})
                       </span>
                     )}
                   </p>
@@ -577,7 +620,10 @@ const AdminDashboard = () => {
                       <strong>Out:</strong> {formatTo12Hour(p.outTime)}{" "}
                       {p.overtimeMark && (
                         <span className={styles.overtime}>
-                          (Overtime{p.overtimeMinutes ? ` +${p.overtimeMinutes}m` : ""})
+                          (Overtime
+                          {p.overtimeMinutes
+                            ? ` +${p.overtimeMinutes}m`
+                            : ""})
                         </span>
                       )}
                     </p>
