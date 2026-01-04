@@ -485,7 +485,10 @@ const AdminDashboard = () => {
               exportMonthlyReportToPDF(
                 monthlyUserDetails,
                 monthlyRecords,
-                monthlyTotalMinutes
+                monthlyTotalMinutes,
+                monthlyTotalLateMinutes,
+                monthlyLateMarkCount,
+                monthlyHalfDayDeductions
               )
             }
             style={{
