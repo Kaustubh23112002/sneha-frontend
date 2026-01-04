@@ -11,17 +11,11 @@ const formatTo12Hour = (timeStr) => {
   return `${hour12}:${minute} ${suffix}`;
 };
 
-const calculateDuration = (start, end) => {
-  if (!start || !end) return "--";
-  const [sh, sm] = start.split(":").map(Number);
-  const [eh, em] = end.split(":").map(Number);
-  const startMins = sh * 60 + sm;
-  const endMins = eh * 60 + em;
-  const diff = endMins - startMins;
-  if (diff < 0) return "--";
-  const hrs = Math.floor(diff / 60);
-  const mins = diff % 60;
-  return `${hrs}h ${mins}m`;
+const formatMinutes = (mins = 0) => {
+  const m = Math.max(0, Number(mins) || 0);
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return `${h}h ${r}m`;
 };
 
 const MonthlyAttendanceTable = () => {
@@ -29,6 +23,7 @@ const MonthlyAttendanceTable = () => {
   const [users, setUsers] = useState([]);
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [records, setRecords] = useState([]);
+  const [summary, setSummary] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 10;
 
@@ -44,13 +39,20 @@ const MonthlyAttendanceTable = () => {
   const fetchMonthlyRecords = async () => {
     if (!selectedUser) return;
     try {
-      const res = await axiosClient.get(`/api/admin/attendance/${selectedUser}/history`);
-      const all = res.data.history || [];
-      const filtered = all.filter((att) => att.date.startsWith(month));
-      setRecords(filtered);
+      // Use the monthly endpoint for proper calculation
+      const res = await axiosClient.get(
+        `/api/admin/attendance/${selectedUser}/month`,
+        {
+          params: { month },
+        }
+      );
+      setRecords(res.data.records || []);
+      setSummary(res.data.summary || null);
       setCurrentPage(1);
     } catch (err) {
-      console.error("Error fetching history", err);
+      console.error("Error fetching monthly records", err);
+      setRecords([]);
+      setSummary(null);
     }
   };
 
@@ -98,6 +100,23 @@ const MonthlyAttendanceTable = () => {
         <p>No attendance found for this user in selected month.</p>
       )}
 
+      {summary && (
+        <div className={styles.summaryBox} style={{ 
+          margin: "20px 0", 
+          padding: "15px", 
+          background: "#f5f5f5", 
+          borderRadius: "8px" 
+        }}>
+          <h4>Monthly Summary</h4>
+          <p>
+            <strong>Total Worked:</strong> {formatMinutes(summary.totalMinutes)} •{" "}
+            <strong>Total Late:</strong> {formatMinutes(summary.totalLateMinutes)} •{" "}
+            <strong>Late Marks:</strong> {summary.lateMarkCount || 0} •{" "}
+            <strong>Half Day Deductions:</strong> {summary.halfDayDeductions || 0}
+          </p>
+        </div>
+      )}
+
       {currentRecords.length > 0 && (
         <>
           <table className={styles.table}>
@@ -107,23 +126,57 @@ const MonthlyAttendanceTable = () => {
                 <th>Punch In</th>
                 <th>Punch Out</th>
                 <th>Duration</th>
+                <th>Day Total</th>
                 <th>Late</th>
-                <th>Overtime</th>
+                <th>Half Day</th>
               </tr>
             </thead>
             <tbody>
-              {currentRecords.map((att) =>
-                att.punches.map((punch, idx) => (
+              {currentRecords.map((att) => {
+                // Group punches for the same date
+                const firstPunch = att.punches[0] || {};
+                const dayTotal = att.dayMinutes || 0;
+                const isHalfDay = att.isHalfDayDeducted || false;
+                const dayLate = att.totalLateMinutes || 0;
+
+                return att.punches.map((punch, idx) => (
                   <tr key={att._id + idx}>
-                    <td>{att.date}</td>
+                    {idx === 0 && (
+                      <>
+                        <td rowSpan={att.punches.length}>{att.date}</td>
+                      </>
+                    )}
                     <td>{formatTo12Hour(punch.inTime)}</td>
                     <td>{formatTo12Hour(punch.outTime)}</td>
-                    <td>{calculateDuration(punch.inTime, punch.outTime)}</td>
-                    <td>{punch.late ? "Yes" : "No"}</td>
-                    <td>{punch.overtime ? "Yes" : "No"}</td>
+                    <td>{formatMinutes(punch.durationInMinutes || 0)}</td>
+                    {idx === 0 && (
+                      <>
+                        <td rowSpan={att.punches.length}>
+                          {formatMinutes(dayTotal)}
+                        </td>
+                        <td rowSpan={att.punches.length}>
+                          {punch.lateMark ? (
+                            <span style={{ color: "orange", fontWeight: "bold" }}>
+                              Yes (+{punch.lateMinutes}m)
+                            </span>
+                          ) : (
+                            "No"
+                          )}
+                        </td>
+                        <td rowSpan={att.punches.length}>
+                          {isHalfDay ? (
+                            <span style={{ color: "red", fontWeight: "bold" }}>
+                              ✓ Deducted
+                            </span>
+                          ) : (
+                            "No"
+                          )}
+                        </td>
+                      </>
+                    )}
                   </tr>
-                ))
-              )}
+                ));
+              })}
             </tbody>
           </table>
 

@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import styles from "./AdminDashboard.module.css";
-import moment from "moment"; // optional now; only needed if you later add other time logic
 import { exportMonthlyReportToPDF } from "../utils/exportPdf";
 
 const AdminDashboard = () => {
@@ -22,8 +21,8 @@ const AdminDashboard = () => {
   const [monthlyRecords, setMonthlyRecords] = useState([]);
   const [monthlyTotalMinutes, setMonthlyTotalMinutes] = useState(0);
   const [monthlyTotalLateMinutes, setMonthlyTotalLateMinutes] = useState(0);
-  const [monthlyTotalOvertimeMinutes, setMonthlyTotalOvertimeMinutes] =
-    useState(0);
+  const [monthlyLateMarkCount, setMonthlyLateMarkCount] = useState(0);
+  const [monthlyHalfDayDeductions, setMonthlyHalfDayDeductions] = useState(0);
   const [monthlyUserDetails, setMonthlyUserDetails] = useState(null);
 
   const user = historyUserDetails;
@@ -78,7 +77,8 @@ const AdminDashboard = () => {
       setMonthlyRecords([]);
       setMonthlyTotalMinutes(0);
       setMonthlyTotalLateMinutes(0);
-      setMonthlyTotalOvertimeMinutes(0);
+      setMonthlyLateMarkCount(0);
+      setMonthlyHalfDayDeductions(0);
       setMonthlyUserDetails(null);
     } catch (err) {
       console.error("Error fetching attendance by date:", err);
@@ -99,7 +99,8 @@ const AdminDashboard = () => {
       setMonthlyRecords([]);
       setMonthlyTotalMinutes(0);
       setMonthlyTotalLateMinutes(0);
-      setMonthlyTotalOvertimeMinutes(0);
+      setMonthlyLateMarkCount(0);
+      setMonthlyHalfDayDeductions(0);
       setMonthlyUserDetails(null);
     } catch (err) {
       console.error("Error fetching history:", err);
@@ -112,7 +113,7 @@ const AdminDashboard = () => {
       const res = await axiosClient.get(
         `/api/admin/attendance/${userId}/month`,
         {
-          params: { month: selectedMonth }, // use the selected month
+          params: { month: selectedMonth },
         }
       );
 
@@ -123,7 +124,8 @@ const AdminDashboard = () => {
       setMonthlyRecords(records);
       setMonthlyTotalMinutes(summary.totalMinutes || 0);
       setMonthlyTotalLateMinutes(summary.totalLateMinutes || 0);
-      setMonthlyTotalOvertimeMinutes(summary.totalOvertimeMinutes || 0);
+      setMonthlyLateMarkCount(summary.lateMarkCount || 0);
+      setMonthlyHalfDayDeductions(summary.halfDayDeductions || 0);
       setMonthlyUserDetails(res.data.user || null);
 
       // clear history...
@@ -391,11 +393,9 @@ const AdminDashboard = () => {
                   🕒 Total Work: {formatMinutes(att.totalMinutes)}
                 </div>
               )}
-              {(att.totalLateMinutes !== undefined ||
-                att.totalOvertimeMinutes !== undefined) && (
+              {att.totalLateMinutes !== undefined && (
                 <div className={styles.totalWork}>
-                  ⚠️ Late: {formatMinutes(att.totalLateMinutes || 0)} • ⏫
-                  Overtime: {formatMinutes(att.totalOvertimeMinutes || 0)}
+                  ⚠️ Late: {formatMinutes(att.totalLateMinutes || 0)}
                 </div>
               )}
 
@@ -405,7 +405,6 @@ const AdminDashboard = () => {
                   <p className={styles.noRecordsSmall}>No punches</p>
                 )}
                 {punches.map((p, idx) => {
-                  // Trust backend duration; do not recompute with moment
                   const durationMin = p.durationInMinutes;
 
                   return (
@@ -445,14 +444,6 @@ const AdminDashboard = () => {
                             )
                           }
                         />
-                        {p.overtimeMark && (
-                          <span className={styles.overtime}>
-                            Overtime
-                            {p.overtimeMinutes
-                              ? ` (+${p.overtimeMinutes}m)`
-                              : ""}
-                          </span>
-                        )}
                       </div>
 
                       {durationMin != null && (
@@ -479,11 +470,14 @@ const AdminDashboard = () => {
       {/* Monthly Summary Section */}
       {monthlyUser && (
         <div className={styles.historySection}>
-          <h3 className={styles.historyHeading}>Monthly Summary</h3>
+          <h3 className={styles.historyHeading}>
+            Monthly Summary - {selectedMonth}
+          </h3>
           <p>
             Total Worked: {formatMinutes(monthlyTotalMinutes)} • Late:{" "}
-            {formatMinutes(monthlyTotalLateMinutes)} • Overtime:{" "}
-            {formatMinutes(monthlyTotalOvertimeMinutes)}
+            {formatMinutes(monthlyTotalLateMinutes)} • Late Marks:{" "}
+            {monthlyLateMarkCount} • Half Day Deductions:{" "}
+            {monthlyHalfDayDeductions}
           </p>
 
           <button
@@ -511,9 +505,14 @@ const AdminDashboard = () => {
             <div key={att._id} className={styles.historyCard}>
               <p>
                 <strong>Date:</strong> {att.date} — ⏱️ Worked:{" "}
-                {formatMinutes(att.dayMinutes || att.totalMinutes || 0)} • ⚠️
-                Late: {formatMinutes(att.totalLateMinutes || 0)} • ⏫ OT:{" "}
-                {formatMinutes(att.totalOvertimeMinutes || 0)}
+                {formatMinutes(att.dayMinutes || 0)} • ⚠️ Late:{" "}
+                {formatMinutes(att.totalLateMinutes || 0)}
+                {att.isHalfDayDeducted && (
+                  <span style={{ color: "red", fontWeight: "bold" }}>
+                    {" "}
+                    • 🔴 Half Day Deducted (3rd Late Mark)
+                  </span>
+                )}
               </p>
 
               {att.punches.length === 0 && <p>No punches</p>}
@@ -536,13 +535,7 @@ const AdminDashboard = () => {
                     />
                   )}
                   <p>
-                    <strong>Out:</strong> {formatTo12Hour(p.outTime)}{" "}
-                    {p.overtimeMark && (
-                      <span className={styles.overtime}>
-                        (Overtime
-                        {p.overtimeMinutes ? ` +${p.overtimeMinutes}m` : ""})
-                      </span>
-                    )}
+                    <strong>Out:</strong> {formatTo12Hour(p.outTime)}
                   </p>
                   {p.outPhotoUrl && (
                     <img
@@ -554,7 +547,7 @@ const AdminDashboard = () => {
                   )}
                   {p.durationInMinutes != null && (
                     <p className={styles.durationSmall}>
-                      ⏱️ Worked: {formatMinutes(p.durationInMinutes)}
+                      ⏱️ Duration: {formatMinutes(p.durationInMinutes)}
                     </p>
                   )}
                 </div>
@@ -617,15 +610,7 @@ const AdminDashboard = () => {
                     )}
 
                     <p>
-                      <strong>Out:</strong> {formatTo12Hour(p.outTime)}{" "}
-                      {p.overtimeMark && (
-                        <span className={styles.overtime}>
-                          (Overtime
-                          {p.overtimeMinutes
-                            ? ` +${p.overtimeMinutes}m`
-                            : ""})
-                        </span>
-                      )}
+                      <strong>Out:</strong> {formatTo12Hour(p.outTime)}
                     </p>
                     {p.outPhotoUrl && (
                       <img
@@ -642,7 +627,7 @@ const AdminDashboard = () => {
 
                     {p.durationInMinutes != null && (
                       <p className={styles.durationSmall}>
-                        ⏱️ Worked: {formatMinutes(p.durationInMinutes)}
+                        ⏱️ Duration: {formatMinutes(p.durationInMinutes)}
                       </p>
                     )}
                   </div>
@@ -651,8 +636,7 @@ const AdminDashboard = () => {
                 {att.totalMinutes !== undefined && (
                   <p className={styles.totalDurationSmall}>
                     Total Worked: {formatMinutes(att.totalMinutes)} • Late:{" "}
-                    {formatMinutes(att.totalLateMinutes || 0)} • OT:{" "}
-                    {formatMinutes(att.totalOvertimeMinutes || 0)}
+                    {formatMinutes(att.totalLateMinutes || 0)}
                   </p>
                 )}
               </div>
