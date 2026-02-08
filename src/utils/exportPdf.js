@@ -88,7 +88,7 @@ export const exportMonthlyReportToPDF = (
   });
 
   // Add footer with summary
-  const pageCount = doc.internal.getPages().length;
+  const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
     doc.setFontSize(9);
