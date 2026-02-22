@@ -13,7 +13,7 @@ const AdminDashboard = () => {
   const [editEmployees, setEditEmployees] = useState({});
   const [historyUserDetails, setHistoryUserDetails] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(() =>
-    new Date().toISOString().slice(0, 7)
+    new Date().toISOString().slice(0, 7),
   );
 
   // Monthly summary states
@@ -88,7 +88,7 @@ const AdminDashboard = () => {
   const fetchHistory = async (userId) => {
     try {
       const res = await axiosClient.get(
-        `/api/admin/attendance/${userId}/history`
+        `/api/admin/attendance/${userId}/history`,
       );
       setHistoryUser(userId);
       setHistoryRecords(res.data.history || []);
@@ -114,7 +114,7 @@ const AdminDashboard = () => {
         `/api/admin/attendance/${userId}/month`,
         {
           params: { month: selectedMonth },
-        }
+        },
       );
 
       const records = res.data.records || [];
@@ -210,7 +210,7 @@ const AdminDashboard = () => {
   const deleteEmployee = async (userId) => {
     if (
       !window.confirm(
-        "Are you sure you want to delete this employee and all their data?"
+        "Are you sure you want to delete this employee and all their data?",
       )
     )
       return;
@@ -321,7 +321,7 @@ const AdminDashboard = () => {
                       handleEmployeeChange(
                         user._id,
                         "phoneNumber",
-                        e.target.value
+                        e.target.value,
                       )
                     }
                   />
@@ -362,7 +362,7 @@ const AdminDashboard = () => {
                             user._id,
                             i,
                             "start",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -401,9 +401,42 @@ const AdminDashboard = () => {
 
               <div className={styles.punchContainer}>
                 <h4 className={styles.subheading}>Punch Records</h4>
+
                 {punches.length === 0 && (
-                  <p className={styles.noRecordsSmall}>No punches</p>
+                  <>
+                    <p className={styles.noRecordsSmall}>No punches</p>
+
+                    {att.isAbsent && (
+                      <button
+                        className={styles.saveButton}
+                        onClick={async () => {
+                          const inTime = prompt("Enter In Time (HH:mm)");
+                          const outTime = prompt("Enter Out Time (HH:mm)");
+                          if (!inTime) return;
+
+                          try {
+                            await axiosClient.post(
+                              "/api/admin/attendance/manual",
+                              {
+                                userId: user._id,
+                                date,
+                                inTime,
+                                outTime,
+                              },
+                            );
+
+                            await fetchByDate();
+                          } catch (err) {
+                            alert("Failed to add manual punch");
+                          }
+                        }}
+                      >
+                        ➕ Add Manual Punch
+                      </button>
+                    )}
+                  </>
                 )}
+
                 {punches.map((p, idx) => {
                   const durationMin = p.durationInMinutes;
 
@@ -419,7 +452,7 @@ const AdminDashboard = () => {
                               att._id,
                               idx,
                               "inTime",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                         />
@@ -440,7 +473,7 @@ const AdminDashboard = () => {
                               att._id,
                               idx,
                               "outTime",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                         />
@@ -488,7 +521,7 @@ const AdminDashboard = () => {
                 monthlyTotalMinutes,
                 monthlyTotalLateMinutes,
                 monthlyLateMarkCount,
-                monthlyHalfDayDeductions
+                monthlyHalfDayDeductions,
               )
             }
             style={{
